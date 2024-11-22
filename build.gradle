@@ -112,6 +112,11 @@ repositories {
     // }
 }
 
+configurations {
+    jarJar
+    implementation.extendsFrom jarJar
+}
+
 dependencies {
     // Specify the version of Minecraft to use.
     // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
@@ -119,6 +124,7 @@ dependencies {
     // If the group id is "net.minecraft" and the artifact id is one of ["client", "server", "joined"],
     // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    jarJar('org.java-websocket:Java-WebSocket:[1.5.0,1.6.0)')
 
     // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
@@ -135,6 +141,27 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 
+}
+
+jar {
+    // 将 jarJar 依赖打包进主 jar
+    from {
+        configurations.jarJar.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+
+    manifest {
+        attributes(["Specification-Title": mod_id,
+                    "Specification-Vendor": mod_authors,
+                    "Specification-Version": "1",
+                    "Implementation-Title": project.name,
+                    "Implementation-Version": project.jar.archiveVersion,
+                    "Implementation-Vendor": mod_authors,
+                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")])
+    }
+
+    finalizedBy 'reobfJar'
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
@@ -157,17 +184,19 @@ tasks.named('processResources', ProcessResources).configure {
 
 // Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
+    // 添加重复处理策略
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
         attributes(["Specification-Title"     : mod_id,
                     "Specification-Vendor"    : mod_authors,
-                    "Specification-Version"   : "1", // We are version 1 of ourselves
+                    "Specification-Version"   : "1",
                     "Implementation-Title"    : project.name,
                     "Implementation-Version"  : project.jar.archiveVersion,
                     "Implementation-Vendor"   : mod_authors,
                     "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")])
     }
 
-    // This is the preferred method to reobfuscate your jar file
     finalizedBy 'reobfJar'
 }
 
